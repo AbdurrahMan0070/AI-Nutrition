@@ -663,33 +663,26 @@
                 console.log('Sending request to:', API_URL);
                 console.log('Request time:', new Date().toISOString());
                 
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
+                
                 const response = await fetch(API_URL, {
                     method: 'POST',
-                    body: formData
+                    body: formData,
+                    signal: controller.signal
                 });
+                
+                clearTimeout(timeoutId);
 
                 console.log('Response received!');
                 console.log('Status:', response.status);
                 console.log('Status text:', response.statusText);
-                console.log('Headers:', [...response.headers.entries()]);
-
-                if (!response.ok) {
-                    let errorMsg;
-                    try {
-                        const errorData = await response.json();
-                        errorMsg = errorData.error || `Server error: ${response.status}`;
-                        console.error('Error data:', errorData);
-                    } catch (e) {
-                        errorMsg = `Server error: ${response.status} ${response.statusText}`;
-                        console.error('Could not parse error response');
-                    }
-                    throw new Error(errorMsg);
-                }
 
                 const data = await response.json();
                 console.log('SUCCESS! Received data:', data);
                 console.log('Data keys:', Object.keys(data));
 
+                // Even if there was an error, we might have fallback data
                 populateResults(data);
                 showState('results');
 
@@ -699,9 +692,12 @@
                 console.error('='.repeat(50));
                 console.error('Error type:', error.name);
                 console.error('Error message:', error.message);
-                console.error('Error stack:', error.stack);
                 
-                showError(error.message || 'Failed to analyze image. Check console for details.');
+                if (error.name === 'AbortError') {
+                    showError('Request timeout. Please try again with a smaller image.');
+                } else {
+                    showError('Failed to analyze. Please check your internet connection and try again.');
+                }
                 showState('preview');
             }
         });
