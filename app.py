@@ -27,6 +27,56 @@ def index():
 def health():
     return jsonify({'status': 'ok'}), 200
 
+@app.route('/test-models')
+def test_models():
+    """Test which models are available with this API key"""
+    results = []
+    
+    # Test different API versions and models
+    test_configs = [
+        ("v1", "gemini-pro"),
+        ("v1", "gemini-pro-vision"),
+        ("v1beta", "gemini-1.5-flash"),
+        ("v1beta", "gemini-1.5-flash-latest"),
+        ("v1beta", "gemini-1.5-pro"),
+        ("v1beta", "gemini-1.5-pro-latest"),
+        ("v1beta", "gemini-pro"),
+        ("v1beta", "gemini-pro-vision"),
+    ]
+    
+    for api_version, model_name in test_configs:
+        try:
+            url = f"https://generativelanguage.googleapis.com/{api_version}/models/{model_name}?key={api_key}"
+            response = requests.get(url, timeout=5)
+            
+            if response.status_code == 200:
+                results.append({
+                    "api_version": api_version,
+                    "model": model_name,
+                    "status": "✓ Available",
+                    "details": response.json()
+                })
+            else:
+                results.append({
+                    "api_version": api_version,
+                    "model": model_name,
+                    "status": f"✗ Not available ({response.status_code})",
+                    "error": response.text[:200]
+                })
+        except Exception as e:
+            results.append({
+                "api_version": api_version,
+                "model": model_name,
+                "status": "✗ Error",
+                "error": str(e)
+            })
+    
+    return jsonify({
+        "api_key": f"{api_key[:10]}...",
+        "models_tested": len(test_configs),
+        "results": results
+    }), 200
+
 @app.route('/analyze-image', methods=['POST'])
 def analyze_image():
     print("\n" + "="*50)
