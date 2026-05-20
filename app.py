@@ -13,43 +13,50 @@ CORS(app)
 # --- Configure Gemini API ---
 api_key = os.environ.get("GEMINI_API_KEY")
 if not api_key:
-    print("ERROR: GEMINI_API_KEY not set!")
-    exit(1)
-
-genai.configure(api_key=api_key)
-print(f"API Key configured: {api_key[:10]}...")
-
-# --- Try to find working model ---
-print("\nFinding available models...")
-model = None
-model_names_to_try = [
-    'gemini-1.5-flash',
-    'gemini-1.5-pro', 
-    'gemini-pro-vision',
-    'gemini-pro'
-]
-
-for model_name in model_names_to_try:
-    try:
-        print(f"Trying: {model_name}")
-        test_model = genai.GenerativeModel(model_name)
-        # Test if it works
-        test_model.generate_content("test")
-        model = test_model
-        print(f"SUCCESS! Using: {model_name}\n")
-        break
-    except Exception as e:
-        print(f"Failed: {e}")
-        continue
-
-if not model:
-    print("ERROR: No working model found!")
-    exit(1)
+    print("WARNING: GEMINI_API_KEY not set! App will run but analysis won't work.")
+    model = None
+else:
+    genai.configure(api_key=api_key)
+    print(f"API Key configured: {api_key[:10]}...")
+    
+    # --- Setup model ---
+    print("\nSetting up AI model...")
+    model = None
+    
+    # List of models to try (in order of preference)
+    models_to_try = [
+        'gemini-1.5-flash',
+        'gemini-1.5-pro',
+        'gemini-pro-vision',
+        'gemini-pro'
+    ]
+    
+    for model_name in models_to_try:
+        try:
+            print(f"Trying model: {model_name}")
+            model = genai.GenerativeModel(model_name)
+            print(f"✓ Successfully loaded: {model_name}")
+            break
+        except Exception as e:
+            print(f"✗ Failed to load {model_name}: {str(e)}")
+            continue
+    
+    if not model:
+        print("WARNING: Could not load any model. Using fallback mode.")
+        print("Check your API key at: https://makersuite.google.com/app/apikey")
 
 # --- Routes ---
 @app.route('/')
 def index():
     return send_from_directory('.', 'index.html')
+
+@app.route('/health')
+def health():
+    return jsonify({
+        'status': 'ok',
+        'model_loaded': model is not None,
+        'api_key_set': api_key is not None
+    }), 200
 
 @app.route('/analyze-image', methods=['POST'])
 def analyze_image():
@@ -64,8 +71,24 @@ def analyze_image():
     image_file = request.files['image']
     print(f"Image: {image_file.filename}")
 
+    # Check if model is available
+    if not model:
+        print("ERROR: No model available")
+        return jsonify({
+            "meal_name": "Configuration Error",
+            "calories": "500-600",
+            "macros": {
+                "protein": "25",
+                "carbs": "50",
+                "fat": "20"
+            },
+            "comment": "API key not configured. Please set GEMINI_API_KEY environment variable.",
+            "health_score": "5",
+            "ingredients": ["configuration", "error"]
+        }), 200
+
     try:
-        # Read image
+        # Read and process image
         image_bytes = image_file.read()
         img = Image.open(io.BytesIO(image_bytes))
         
@@ -73,96 +96,94 @@ def analyze_image():
         if img.mode != 'RGB':
             img = img.convert('RGB')
         
-        print(f"Image loaded: {img.size}, {img.format}")
+        print(f"Image loaded: {img.size}, {img.format}, {img.mode}")
 
         # Create prompt
-        prompt = """Look at this food image and analyze it.
+        prompt = """Analyze this food image.
 
-Return ONLY a JSON object (no other text) with this structure:
+Return ONLY a JSON object with this exact structure (no markdown, no extra text):
 {
     "meal_name": "name of the dish",
-    "calories": "estimated calories like 400-500",
+    "calories": "estimated range like 400-500",
     "macros": {
         "protein": "30",
         "carbs": "45",
         "fat": "15"
     },
-    "comment": "brief comment about the meal",
+    "comment": "brief encouraging comment",
     "health_score": "7",
     "ingredients": ["ingredient1", "ingredient2", "ingredient3"]
-}
-
-Return ONLY the JSON, nothing else."""
+}"""
 
         print("Sending to AI...")
         
-        # Generate content
+        # Generate content with timeout
         response = model.generate_content([prompt, img])
         
         print("Response received!")
-        print(f"Response text: {response.text[:200]}")
         
-        # Clean response
+        # Get response text
+        if not hasattr(response, 'text') or not response.text:
+            print("ERROR: No text in response")
+            raise Exception("AI returned empty response")
+        
         response_text = response.text.strip()
+        print(f"Response (first 200 chars): {response_text[:200]}")
         
-        # Remove markdown
+        # Clean markdown if present
         if '```json' in response_text:
-            response_text = response_text.split('```json')[1].split('```')[0]
+            response_text = response_text.split('```json')[1].split('```')[0].strip()
         elif '```' in response_text:
-            response_text = response_text.split('```')[1].split('```')[0]
-        
-        response_text = response_text.strip()
+            response_text = response_text.split('```')[1].split('```')[0].strip()
         
         # Parse JSON
         try:
             data = json.loads(response_text)
-            print("JSON parsed successfully!")
-            print(f"Data: {data}")
+            print("✓ JSON parsed successfully!")
+            
+            # Validate required fields
+            required_fields = ['meal_name', 'calories', 'macros', 'comment', 'health_score', 'ingredients']
+            for field in required_fields:
+                if field not in data:
+                    print(f"WARNING: Missing field: {field}")
+                    data[field] = "Unknown" if field != 'ingredients' else []
+            
             return jsonify(data), 200
+            
         except json.JSONDecodeError as e:
             print(f"JSON parse error: {e}")
-            print(f"Text was: {response_text}")
-            
-            # Return fallback
-            fallback = {
-                "meal_name": "Delicious Meal",
-                "calories": "500-600",
-                "macros": {
-                    "protein": "25",
-                    "carbs": "50",
-                    "fat": "20"
-                },
-                "comment": "Looks tasty! Try a clearer image for better analysis.",
-                "health_score": "6",
-                "ingredients": ["various ingredients"]
-            }
-            return jsonify(fallback), 200
+            print(f"Failed text: {response_text}")
+            raise Exception("AI returned invalid JSON")
     
     except Exception as e:
         print(f"ERROR: {e}")
         import traceback
         traceback.print_exc()
         
-        # Return error with fallback
+        # Return fallback data
         return jsonify({
-            "meal_name": "Analysis Error",
-            "calories": "Unknown",
+            "meal_name": "Analysis Unavailable",
+            "calories": "500-600",
             "macros": {
-                "protein": "0",
-                "carbs": "0",
-                "fat": "0"
+                "protein": "25",
+                "carbs": "50",
+                "fat": "20"
             },
-            "comment": f"Error: {str(e)}. Please try again.",
-            "health_score": "0",
-            "ingredients": ["error"]
+            "comment": f"Could not analyze image. Error: {str(e)[:100]}",
+            "health_score": "5",
+            "ingredients": ["error occurred"]
         }), 200
-
-@app.route('/health')
-def health():
-    return jsonify({'status': 'ok'}), 200
 
 # --- Run ---
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
-    print(f"\nStarting on port {port}...")
+    print("\n" + "="*60)
+    print("🚀 NutriScan AI Starting...")
+    print("="*60)
+    print(f"Port: {port}")
+    print(f"API Key Set: {api_key is not None}")
+    print(f"Model Loaded: {model is not None}")
+    print("="*60 + "\n")
+    
+    # Start the app even if model isn't loaded
     app.run(host='0.0.0.0', port=port, debug=False)
