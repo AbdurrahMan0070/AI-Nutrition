@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NutriScan AI - Smart Nutrition Analysis</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* Animated background particles */
+        body::before {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                radial-gradient(circle at 20% 50%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 40% 20%, rgba(255, 255, 255, 0.05) 0%, transparent 50%);
+            animation: float 20s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+        }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            max-width: 500px;
+        }
+
+        .app-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 24px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+            transition: transform 0.3s ease;
+        }
+
+        .app-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .app-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 30px;
+            text-align: center;
+            color: white;
+        }
+
+        .app-title {
+            font-family: 'Poppins', sans-serif;
+            font-size: 2rem;
+            font-weight: 800;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+        }
+
+        .app-subtitle {
+            font-size: 0.95rem;
+            opacity: 0.95;
+            font-weight: 400;
+        }
+
+        .app-content {
+            padding: 30px;
+        }
+
+        /* Hidden file input */
+        #image-upload-input {
+            display: none;
+        }
+
+        /* Upload State */
+        #upload-state {
+            text-align: center;
+        }
+
+        .upload-zone {
+            border: 3px dashed #667eea;
+            border-radius: 16px;
+            padding: 50px 30px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
+        }
+
+        .upload-zone:hover {
+            border-color: #764ba2;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+            transform: scale(1.02);
+        }
+
+        .upload-icon-wrapper {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+        }
+
+        .upload-text {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: #2d3748;
+            margin-bottom: 8px;
+        }
+
+        .upload-subtext {
+            font-size: 0.95rem;
+            color: #718096;
+        }
+
+        /* Preview State */
+        #preview-state {
+            display: none;
+        }
+
+        .preview-image-wrapper {
+            position: relative;
+            border-radius: 16px;
+            overflow: hidden;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        #preview-image {
+            width: 100%;
+            height: 300px;
+            object-fit: cover;
+            display: block;
+        }
+
+        .button-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .btn {
+            padding: 14px 24px;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+        }
+
+        .btn-secondary {
+            background: #e2e8f0;
+            color: #2d3748;
+        }
+
+        .btn-secondary:hover {
+            background: #cbd5e0;
+            transform: translateY(-2px);
+        }
+
+        /* Loading State */
+        #loading-state {
+            display: none;
+            text-align: center;
+            padding: 60px 30px;
+        }
+
+        .spinner-wrapper {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 24px;
+            position: relative;
+        }
+
+        .spinner {
+            width: 100%;
+            height: 100%;
+            border: 4px solid rgba(102, 126, 234, 0.2);
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 8px;
+        }
+
+        .loading-subtext {
+            font-size: 0.9rem;
+            color: #718096;
+        }
+
+        /* Results State */
+        #results-state {
+            display: none;
+        }
+
+        .result-header {
+            text-align: center;
+            margin-bottom: 24px;
+            padding-bottom: 24px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .meal-name {
+            font-family: 'Poppins', sans-serif;
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #2d3748;
+            margin-bottom: 12px;
+        }
+
+        .calories-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 50px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .health-score {
+            margin-top: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            font-size: 1rem;
+            color: #2d3748;
+        }
+
+        .score-bar {
+            width: 200px;
+            height: 8px;
+            background: #e2e8f0;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .score-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #48bb78, #38a169);
+            border-radius: 10px;
+            transition: width 1s ease;
+        }
+
+        .macro-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .macro-card {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.08) 100%);
+            border-radius: 16px;
+            padding: 20px;
+            text-align: center;
+            transition: transform 0.3s ease;
+        }
+
+        .macro-card:hover {
+            transform: translateY(-4px);
+        }
+
+        .macro-icon {
+            width: 40px;
+            height: 40px;
+            margin: 0 auto 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+
+        .macro-label {
+            font-size: 0.85rem;
+            color: #718096;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+
+        .macro-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #2d3748;
+        }
+
+        .ingredients-section {
+            background: #f7fafc;
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .section-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #2d3748;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .ingredients-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .ingredient-tag {
+            background: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            color: #4a5568;
+            border: 1px solid #e2e8f0;
+        }
+
+        .comment-section {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+            border-left: 4px solid #667eea;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .comment-text {
+            font-size: 1rem;
+            color: #2d3748;
+            line-height: 1.6;
+            font-style: italic;
+        }
+
+        .error-message {
+            display: none;
+            background: #fed7d7;
+            color: #c53030;
+            padding: 16px;
+            border-radius: 12px;
+            margin-top: 16px;
+            border-left: 4px solid #c53030;
+        }
+
+        /* Responsive */
+        @media (max-width: 600px) {
+            .app-title {
+                font-size: 1.5rem;
+            }
+            
+            .macro-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="app-card">
+            <!-- Header -->
+            <div class="app-header">
+                <h1 class="app-title">
+                    <i data-lucide="sparkles" width="32" height="32"></i>
+                    NutriScan AI
+                </h1>
+                <p class="app-subtitle">Smart nutrition analysis powered by AI</p>
+            </div>
+
+            <div class="app-content">
+                <!-- STATE 1: UPLOAD -->
+                <div id="upload-state">
+                    <label for="image-upload-input" class="upload-zone">
+                        <div class="upload-icon-wrapper">
+                            <i data-lucide="camera" width="40" height="40" color="white"></i>
+                        </div>
+                        <div class="upload-text">Upload Your Meal</div>
+                        <div class="upload-subtext">Click to select or drag & drop an image</div>
+                    </label>
+                </div>
+
+                <!-- STATE 2: PREVIEW -->
+                <div id="preview-state">
+                    <div class="preview-image-wrapper">
+                        <img id="preview-image" src="#" alt="Your meal">
+                    </div>
+                    <div class="button-group">
+                        <button id="cancel-btn" class="btn btn-secondary">
+                            <i data-lucide="x" width="20" height="20"></i>
+                            Cancel
+                        </button>
+                        <button id="analyze-btn" class="btn btn-primary">
+                            <i data-lucide="scan" width="20" height="20"></i>
+                            Analyze
+                        </button>
+                    </div>
+                </div>
+
+                <!-- STATE 3: LOADING -->
+                <div id="loading-state">
+                    <div class="spinner-wrapper">
+                        <div class="spinner"></div>
+                    </div>
+                    <div class="loading-text">Analyzing Your Meal</div>
+                    <div class="loading-subtext">Our AI is examining the nutritional content...</div>
+                </div>
+
+                <!-- STATE 4: RESULTS -->
+                <div id="results-state">
+                    <div class="result-header">
+                        <h2 class="meal-name" id="meal-name">Delicious Meal</h2>
+                        <div class="calories-badge">
+                            <i data-lucide="flame" width="20" height="20"></i>
+                            <span id="calories">0</span> calories
+                        </div>
+                        <div class="health-score">
+                            <span style="font-weight: 600;">Health Score:</span>
+                            <div class="score-bar">
+                                <div class="score-fill" id="score-fill" style="width: 0%"></div>
+                            </div>
+                            <span id="health-score" style="font-weight: 700;">0/10</span>
+                        </div>
+                    </div>
+
+                    <div class="macro-grid">
+                        <div class="macro-card">
+                            <div class="macro-icon">
+                                <i data-lucide="beef" width="24" height="24"></i>
+                            </div>
+                            <div class="macro-label">Protein</div>
+                            <div class="macro-value"><span id="protein-val">0</span>g</div>
+                        </div>
+                        <div class="macro-card">
+                            <div class="macro-icon">
+                                <i data-lucide="wheat" width="24" height="24"></i>
+                            </div>
+                            <div class="macro-label">Carbs</div>
+                            <div class="macro-value"><span id="carbs-val">0</span>g</div>
+                        </div>
+                        <div class="macro-card">
+                            <div class="macro-icon">
+                                <i data-lucide="droplet" width="24" height="24"></i>
+                            </div>
+                            <div class="macro-label">Fat</div>
+                            <div class="macro-value"><span id="fat-val">0</span>g</div>
+                        </div>
+                    </div>
+
+                    <div class="ingredients-section">
+                        <div class="section-title">
+                            <i data-lucide="list" width="20" height="20"></i>
+                            Detected Ingredients
+                        </div>
+                        <div class="ingredients-list" id="ingredients-list">
+                            <!-- Ingredients will be added here -->
+                        </div>
+                    </div>
+
+                    <div class="comment-section">
+                        <div class="comment-text" id="ai-comment">
+                            AI analysis comment will appear here
+                        </div>
+                    </div>
+
+                    <button id="back-btn" class="btn btn-primary" style="width: 100%;">
+                        <i data-lucide="arrow-left" width="20" height="20"></i>
+                        Analyze Another Meal
+                    </button>
+                </div>
+
+                <!-- Error Message -->
+                <div class="error-message" id="error-message"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden file input -->
+    <input type="file" id="image-upload-input" accept="image/*">
+
+    <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+
+        // DOM Elements
+        const states = {
+            upload: document.getElementById('upload-state'),
+            preview: document.getElementById('preview-state'),
+            loading: document.getElementById('loading-state'),
+            results: document.getElementById('results-state')
+        };
+
+        const uploadInput = document.getElementById('image-upload-input');
+        const uploadZone = document.querySelector('.upload-zone');
+        const previewImage = document.getElementById('preview-image');
+        const analyzeBtn = document.getElementById('analyze-btn');
+        const cancelBtn = document.getElementById('cancel-btn');
+        const backBtn = document.getElementById('back-btn');
+        const errorMessageEl = document.getElementById('error-message');
+
+        // Result elements
+        const mealNameEl = document.getElementById('meal-name');
+        const caloriesEl = document.getElementById('calories');
+        const proteinEl = document.getElementById('protein-val');
+        const carbsEl = document.getElementById('carbs-val');
+        const fatEl = document.getElementById('fat-val');
+        const commentEl = document.getElementById('ai-comment');
+        const healthScoreEl = document.getElementById('health-score');
+        const scoreFillEl = document.getElementById('score-fill');
+        const ingredientsListEl = document.getElementById('ingredients-list');
+
+        const API_URL = 'http://127.0.0.1:5000/analyze-image';
+        let currentFile = null;
+
+        // State Management
+        function showState(stateName) {
+            Object.values(states).forEach(state => state.style.display = 'none');
+            states[stateName].style.display = 'block';
+            errorMessageEl.style.display = 'none';
+            
+            // Reinitialize icons after state change
+            setTimeout(() => lucide.createIcons(), 50);
+        }
+
+        function showError(message) {
+            errorMessageEl.textContent = message;
+            errorMessageEl.style.display = 'block';
+        }
+
+        // File Upload Handling
+        uploadInput.addEventListener('change', (e) => {
+            console.log('File selected');
+            if (e.target.files && e.target.files[0]) {
+                currentFile = e.target.files[0];
+                console.log('File:', currentFile.name);
+                
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    previewImage.src = event.target.result;
+                    showState('preview');
+                };
+                reader.readAsDataURL(currentFile);
+            }
+        });
+
+        uploadZone.addEventListener('click', () => {
+            uploadInput.click();
+        });
+
+        // Drag and drop
+        uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadZone.style.borderColor = '#764ba2';
+        });
+
+        uploadZone.addEventListener('dragleave', () => {
+            uploadZone.style.borderColor = '#667eea';
+        });
+
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.style.borderColor = '#667eea';
+            
+            if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                const file = e.dataTransfer.files[0];
+                if (file.type.startsWith('image/')) {
+                    currentFile = file;
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        previewImage.src = event.target.result;
+                        showState('preview');
+                    };
+                    reader.readAsDataURL(currentFile);
+                }
+            }
+        });
+
+        // Analyze Button
+        analyzeBtn.addEventListener('click', async () => {
+            if (!currentFile) {
+                showError('No file selected');
+                return;
+            }
+
+            console.log('='.repeat(50));
+            console.log('STARTING ANALYSIS');
+            console.log('='.repeat(50));
+            console.log('File:', currentFile.name);
+            console.log('Size:', currentFile.size, 'bytes');
+            console.log('Type:', currentFile.type);
+            
+            showState('loading');
+
+            const formData = new FormData();
+            formData.append('image', currentFile);
+
+            try {
+                console.log('Sending request to:', API_URL);
+                console.log('Request time:', new Date().toISOString());
+                
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                console.log('Response received!');
+                console.log('Status:', response.status);
+                console.log('Status text:', response.statusText);
+                console.log('Headers:', [...response.headers.entries()]);
+
+                if (!response.ok) {
+                    let errorMsg;
+                    try {
+                        const errorData = await response.json();
+                        errorMsg = errorData.error || `Server error: ${response.status}`;
+                        console.error('Error data:', errorData);
+                    } catch (e) {
+                        errorMsg = `Server error: ${response.status} ${response.statusText}`;
+                        console.error('Could not parse error response');
+                    }
+                    throw new Error(errorMsg);
+                }
+
+                const data = await response.json();
+                console.log('SUCCESS! Received data:', data);
+                console.log('Data keys:', Object.keys(data));
+
+                populateResults(data);
+                showState('results');
+
+            } catch (error) {
+                console.error('='.repeat(50));
+                console.error('ERROR OCCURRED');
+                console.error('='.repeat(50));
+                console.error('Error type:', error.name);
+                console.error('Error message:', error.message);
+                console.error('Error stack:', error.stack);
+                
+                showError(error.message || 'Failed to analyze image. Check console for details.');
+                showState('preview');
+            }
+        });
+
+        // Cancel Button
+        cancelBtn.addEventListener('click', () => {
+            uploadInput.value = '';
+            currentFile = null;
+            showState('upload');
+        });
+
+        // Back Button
+        backBtn.addEventListener('click', () => {
+            uploadInput.value = '';
+            currentFile = null;
+            showState('upload');
+        });
+
+        // Populate Results
+        function populateResults(data) {
+            mealNameEl.textContent = data.meal_name || 'Unknown Meal';
+            caloriesEl.textContent = data.calories || '0';
+            proteinEl.textContent = data.macros?.protein || '0';
+            carbsEl.textContent = data.macros?.carbs || '0';
+            fatEl.textContent = data.macros?.fat || '0';
+            commentEl.textContent = data.comment || 'No comment available';
+            
+            // Health score
+            const score = parseInt(data.health_score) || 0;
+            healthScoreEl.textContent = `${score}/10`;
+            scoreFillEl.style.width = `${score * 10}%`;
+            
+            // Update score color based on value
+            if (score >= 7) {
+                scoreFillEl.style.background = 'linear-gradient(90deg, #48bb78, #38a169)';
+            } else if (score >= 4) {
+                scoreFillEl.style.background = 'linear-gradient(90deg, #ed8936, #dd6b20)';
+            } else {
+                scoreFillEl.style.background = 'linear-gradient(90deg, #f56565, #e53e3e)';
+            }
+            
+            // Ingredients
+            ingredientsListEl.innerHTML = '';
+            if (data.ingredients && Array.isArray(data.ingredients)) {
+                data.ingredients.forEach(ingredient => {
+                    const tag = document.createElement('div');
+                    tag.className = 'ingredient-tag';
+                    tag.textContent = ingredient;
+                    ingredientsListEl.appendChild(tag);
+                });
+            } else {
+                ingredientsListEl.innerHTML = '<div class="ingredient-tag">No ingredients detected</div>';
+            }
+            
+            // Reinitialize icons
+            lucide.createIcons();
+        }
+
+        // Initial state
+        showState('upload');
+    </script>
+</body>
+</html>
