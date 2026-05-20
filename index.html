@@ -574,7 +574,8 @@
         const scoreFillEl = document.getElementById('score-fill');
         const ingredientsListEl = document.getElementById('ingredients-list');
 
-        const API_URL = 'http://127.0.0.1:5000/analyze-image';
+        // API URL - use relative path so it works both locally and deployed
+        const API_URL = '/analyze-image';
         let currentFile = null;
 
         // State Management
