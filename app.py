@@ -60,17 +60,30 @@ def analyze_image():
         print(f"Image processed: {img.size}")
 
         # Prepare API request using REST API directly
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+        # Try v1 API first (stable), then v1beta
+        models_to_try = [
+            ("v1", "gemini-pro-vision"),
+            ("v1beta", "gemini-1.5-flash"),
+            ("v1beta", "gemini-1.5-pro"),
+        ]
         
-        headers = {
-            'Content-Type': 'application/json'
-        }
+        last_error = None
         
-        payload = {
-            "contents": [{
-                "parts": [
-                    {
-                        "text": """Analyze this food image and return ONLY a JSON object:
+        for api_version, model_name in models_to_try:
+            try:
+                url = f"https://generativelanguage.googleapis.com/{api_version}/models/{model_name}:generateContent?key={api_key}"
+                
+                print(f"Trying: {api_version}/{model_name}")
+                
+                headers = {
+                    'Content-Type': 'application/json'
+                }
+                
+                payload = {
+                    "contents": [{
+                        "parts": [
+                            {
+                                "text": """Analyze this food image and return ONLY a JSON object:
 {
     "meal_name": "name of dish",
     "calories": "400-500",
@@ -80,50 +93,57 @@ def analyze_image():
     "ingredients": ["item1", "item2", "item3"]
 }
 Return ONLY valid JSON, no markdown."""
-                    },
-                    {
-                        "inline_data": {
-                            "mime_type": "image/jpeg",
-                            "data": img_base64
-                        }
-                    }
-                ]
-            }]
-        }
+                            },
+                            {
+                                "inline_data": {
+                                    "mime_type": "image/jpeg",
+                                    "data": img_base64
+                                }
+                            }
+                        ]
+                    }]
+                }
+                
+                response = requests.post(url, headers=headers, json=payload, timeout=30)
+                
+                print(f"Response status: {response.status_code}")
+                
+                if response.status_code == 200:
+                    result = response.json()
+                    print(f"✓ Success with {api_version}/{model_name}")
+                    
+                    # Extract text from response
+                    if 'candidates' in result and len(result['candidates']) > 0:
+                        text = result['candidates'][0]['content']['parts'][0]['text']
+                        print(f"Response text: {text[:150]}")
+                        
+                        # Clean JSON
+                        if '```json' in text:
+                            text = text.split('```json')[1].split('```')[0]
+                        elif '```' in text:
+                            text = text.split('```')[1].split('```')[0]
+                        
+                        text = text.strip()
+                        
+                        # Parse JSON
+                        data = json.loads(text)
+                        print("✓ Parsed successfully")
+                        
+                        return jsonify(data), 200
+                    else:
+                        raise Exception("No response from API")
+                else:
+                    last_error = f"{response.status_code}: {response.text[:200]}"
+                    print(f"✗ Failed: {last_error}")
+                    continue
+                    
+            except Exception as e:
+                last_error = str(e)
+                print(f"✗ Error with {api_version}/{model_name}: {e}")
+                continue
         
-        print("Calling Gemini API via REST...")
-        
-        response = requests.post(url, headers=headers, json=payload, timeout=30)
-        
-        print(f"Response status: {response.status_code}")
-        
-        if response.status_code != 200:
-            print(f"Error response: {response.text}")
-            raise Exception(f"API returned {response.status_code}: {response.text[:200]}")
-        
-        result = response.json()
-        print("Got response from API")
-        
-        # Extract text from response
-        if 'candidates' in result and len(result['candidates']) > 0:
-            text = result['candidates'][0]['content']['parts'][0]['text']
-            print(f"Response text: {text[:150]}")
-            
-            # Clean JSON
-            if '```json' in text:
-                text = text.split('```json')[1].split('```')[0]
-            elif '```' in text:
-                text = text.split('```')[1].split('```')[0]
-            
-            text = text.strip()
-            
-            # Parse JSON
-            data = json.loads(text)
-            print("✓ Success!")
-            
-            return jsonify(data), 200
-        else:
-            raise Exception("No response from API")
+        # If we get here, all models failed
+        raise Exception(f"All models failed. Last error: {last_error}")
         
     except requests.exceptions.Timeout:
         print("✗ Timeout")
