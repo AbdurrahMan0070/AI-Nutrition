@@ -20,9 +20,23 @@ if not api_key:
 genai.configure(api_key=api_key)
 print(f"API configured with key: {api_key[:10]}...")
 
-# Create model - using the version 0.3.2 compatible way
-model = genai.GenerativeModel('gemini-pro-vision')
-print("Model created: gemini-pro-vision")
+# Create model - try multiple models until one works
+model = None
+models_to_try = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-pro-vision']
+
+for model_name in models_to_try:
+    try:
+        print(f"Trying model: {model_name}")
+        model = genai.GenerativeModel(model_name)
+        print(f"Model created: {model_name}")
+        break
+    except Exception as e:
+        print(f"Failed {model_name}: {e}")
+        continue
+
+if not model:
+    print("ERROR: No model available!")
+    exit(1)
 
 @app.route('/')
 def index():
